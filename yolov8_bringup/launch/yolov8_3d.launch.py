@@ -34,7 +34,7 @@ def generate_launch_description():
     tracker = LaunchConfiguration("tracker")
     tracker_cmd = DeclareLaunchArgument(
         "tracker",
-        default_value="bytetrack.yaml",
+        default_value="/workspace/src/yolov8_ros/yolov8_bringup/bytetrack.yaml",
         description="Tracker name or path")
 
     device = LaunchConfiguration("device")
@@ -58,7 +58,7 @@ def generate_launch_description():
     input_image_topic = LaunchConfiguration("input_image_topic")
     input_image_topic_cmd = DeclareLaunchArgument(
         "input_image_topic",
-        default_value="/camera/rgb/image_raw",
+        default_value="/camera/camera/color/image_raw",
         description="Name of the input image topic")
 
     image_reliability = LaunchConfiguration("image_reliability")
@@ -71,7 +71,7 @@ def generate_launch_description():
     input_depth_topic = LaunchConfiguration("input_depth_topic")
     input_depth_topic_cmd = DeclareLaunchArgument(
         "input_depth_topic",
-        default_value="/camera/depth/image_raw",
+        default_value="/camera/camera/aligned_depth_to_color/image_raw",
         description="Name of the input depth topic")
 
     depth_image_reliability = LaunchConfiguration("depth_image_reliability")
@@ -84,7 +84,7 @@ def generate_launch_description():
     input_depth_info_topic = LaunchConfiguration("input_depth_info_topic")
     input_depth_info_topic_cmd = DeclareLaunchArgument(
         "input_depth_info_topic",
-        default_value="/camera/depth/camera_info",
+        default_value="/camera/camera/aligned_depth_to_color/camera_info",
         description="Name of the input depth info topic")
 
     depth_info_reliability = LaunchConfiguration("depth_info_reliability")
@@ -104,7 +104,7 @@ def generate_launch_description():
     target_frame = LaunchConfiguration("target_frame")
     target_frame_cmd = DeclareLaunchArgument(
         "target_frame",
-        default_value="base_link",
+        default_value="camera_link",
         description="Target frame to transform the 3D boxes")
 
     maximum_detection_threshold = LaunchConfiguration(
@@ -135,7 +135,8 @@ def generate_launch_description():
             "threshold": threshold,
             "image_reliability": image_reliability,
         }],
-        remappings=[("image_raw", input_image_topic)]
+        remappings=[("image_raw", input_image_topic)],
+        # prefix=["gdbserver localhost:3000"]
     )
 
     tracking_node_cmd = Node(
@@ -199,8 +200,8 @@ def generate_launch_description():
     ld.add_action(maximum_detection_threshold_cmd)
     ld.add_action(namespace_cmd)
 
-    ld.add_action(detector_node_cmd)
-    ld.add_action(tracking_node_cmd)
+    # ld.add_action(detector_node_cmd)
+    # ld.add_action(tracking_node_cmd)
     ld.add_action(detect_3d_node_cmd)
     ld.add_action(debug_node_cmd)
 
