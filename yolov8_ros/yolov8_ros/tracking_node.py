@@ -35,7 +35,7 @@ from ultralytics.engine.results import Boxes
 from sensor_msgs.msg import Image
 from yolov8_msgs.msg import Detection
 from yolov8_msgs.msg import DetectionArray
-
+from yolov8_msgs.srv import SetTrackedObject
 
 class TrackingNode(Node):
 
@@ -43,7 +43,7 @@ class TrackingNode(Node):
         super().__init__("tracking_node")
 
         # params
-        self.declare_parameter("tracker", "bytetrack.yaml")
+        self.declare_parameter("tracker", "/workspace/src/yolov8_ros/yolov8_bringup/bytetrack.yaml")
         tracker = self.get_parameter(
             "tracker").get_parameter_value().string_value
 
@@ -73,6 +73,26 @@ class TrackingNode(Node):
             (image_sub, detections_sub), 10, 0.5)
         self._synchronizer.registerCallback(self.detections_cb)
 
+        self.set_tracked_object_srv = self.create_service(
+            SetTrackedObject, "set_tracked_object", self.set_tracked_object_cb)
+        
+        self.selected_object_id = None
+        
+    def set_tracked_object_cb(self, request, response):
+        if request.object_id == -1:
+            self.reset_tracker()
+            response.success = True
+            self.get_logger().info('Reset tracked object ID')
+            return response
+        else:
+            self.selected_object_id = request.object_id
+            response.success = True
+            self.get_logger().info(f'Set tracked object ID to: {self.selected_object_id}')  # Add this line
+            return response
+    
+    def reset_tracker(self):
+        self.selected_object_id = None
+
     def create_tracker(self, tracker_yaml: str) -> BaseTrack:
 
         TRACKER_MAP = {"bytetrack": BYTETracker, "botsort": BOTSORT}
@@ -98,7 +118,6 @@ class TrackingNode(Node):
         detection_list = []
         detection: Detection
         for detection in detections_msg.detections:
-
             detection_list.append(
                 [
                     detection.bbox.center.position.x - detection.bbox.size.x / 2,
@@ -119,6 +138,7 @@ class TrackingNode(Node):
             )
 
             tracks = self.tracker.update(det, cv_image)
+            
 
             if len(tracks) > 0:
 
@@ -129,6 +149,10 @@ class TrackingNode(Node):
 
                     tracked_detection: Detection = detections_msg.detections[int(
                         t[-1])]
+                    
+                    # If selected_object_id is not None and does not match the current track's id, skip this track
+                    if self.selected_object_id is not None and self.selected_object_id != -1 and tracked_box.id != self.selected_object_id:
+                        continue
 
                     # get boxes values
                     box = tracked_box.xywh[0]
@@ -156,3 +180,6 @@ def main():
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

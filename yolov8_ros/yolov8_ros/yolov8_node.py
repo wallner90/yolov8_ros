@@ -42,6 +42,7 @@ from yolov8_msgs.msg import DetectionArray
 from std_srvs.srv import SetBool
 
 
+
 class Yolov8Node(Node):
 
     def __init__(self) -> None:
@@ -203,6 +204,7 @@ class Yolov8Node(Node):
                 device=self.device
             )
             results: Results = results[0].cpu()
+            
 
             if results.boxes:
                 hypothesis = self.parse_hypothesis(results)
@@ -247,3 +249,6 @@ def main():
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
