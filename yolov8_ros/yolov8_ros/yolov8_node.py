@@ -64,6 +64,10 @@ class Yolov8Node(Node):
         self.declare_parameter("enable", True)
         self.enable = self.get_parameter(
             "enable").get_parameter_value().bool_value
+        
+        self.declare_parameter("persons_only", True)
+        self.persons_only = self.get_parameter(
+            "persons_only").get_parameter_value().bool_value
 
         self.declare_parameter("image_reliability",
                                QoSReliabilityPolicy.BEST_EFFORT)
@@ -222,6 +226,8 @@ class Yolov8Node(Node):
             detections_msg = DetectionArray()
 
             for i in range(len(results)):
+                if hypothesis[i]["class_id"] and self.persons_only:
+                    continue
 
                 aux_msg = Detection()
 
