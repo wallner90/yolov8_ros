@@ -196,12 +196,14 @@ class Yolov8Node(Node):
 
             # convert image + predict
             cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
-            results = self.yolo.predict(
+            results = self.yolo.track(
                 source=cv_image,
                 verbose=False,
                 stream=False,
                 conf=self.threshold,
-                device=self.device
+                device=self.device,
+                persist=True,
+                tracker="/workspace/src/yolov8_ros/yolov8_bringup/botsort.yaml"
             )
             results: Results = results[0].cpu()
             

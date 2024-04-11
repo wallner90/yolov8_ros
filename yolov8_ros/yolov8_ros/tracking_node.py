@@ -31,6 +31,7 @@ from ultralytics.trackers.basetrack import BaseTrack
 from ultralytics.utils import IterableSimpleNamespace, yaml_load
 from ultralytics.utils.checks import check_requirements, check_yaml
 from ultralytics.engine.results import Boxes
+from ultralytics.trackers.utils.gmc import GMC
 
 from sensor_msgs.msg import Image
 from yolov8_msgs.msg import Detection
@@ -43,7 +44,7 @@ class TrackingNode(Node):
         super().__init__("tracking_node")
 
         # params
-        self.declare_parameter("tracker", "/workspace/src/yolov8_ros/yolov8_bringup/bytetrack.yaml")
+        self.declare_parameter("tracker", "/workspace/src/yolov8_ros/yolov8_bringup/botsort.yaml")
         tracker = self.get_parameter(
             "tracker").get_parameter_value().string_value
 
@@ -57,8 +58,10 @@ class TrackingNode(Node):
             depth=1
         )
 
+        self.gmc = GMC()
         self.cv_bridge = CvBridge()
         self.tracker = self.create_tracker(tracker)
+
 
         # pubs
         self._pub = self.create_publisher(DetectionArray, "tracking", 10)

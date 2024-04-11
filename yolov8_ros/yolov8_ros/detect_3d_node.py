@@ -32,6 +32,7 @@ from tf2_ros.transform_listener import TransformListener
 
 from sensor_msgs.msg import CameraInfo, Image
 from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import PoseStamped
 from yolov8_msgs.msg import Detection
 from yolov8_msgs.msg import DetectionArray
 from yolov8_msgs.msg import KeyPoint3D
@@ -77,6 +78,10 @@ class Detect3DNode(Node):
             depth=1
         )
 
+        self.declare_parameter("distance_to_person", 1.0)
+        self.distance_to_person = self.get_parameter(
+            "distance_to_person").get_parameter_value().double_value
+
         # aux
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -84,6 +89,7 @@ class Detect3DNode(Node):
 
         # pubs
         self._pub = self.create_publisher(DetectionArray, "detections_3d", 10)
+        self._pose_pub = self.create_publisher(PoseStamped, 'bbox_center', 10)
 
         # subs
         self.depth_sub = message_filters.Subscriber(
@@ -111,6 +117,16 @@ class Detect3DNode(Node):
         new_detections_msg.detections = self.process_detections(
             depth_msg, depth_info_msg, detections_msg)
         self._pub.publish(new_detections_msg)
+
+        if new_detections_msg.detections:
+            center_pose = PoseStamped()
+            center_pose.header = new_detections_msg.header
+            center_pose.header.frame_id = self.target_frame
+            center_pose.pose.position.x = max(new_detections_msg.detections[0].bbox3d.center.position.x - self.distance_to_person, 0.0)
+            center_pose.pose.position.y = new_detections_msg.detections[0].bbox3d.center.position.y
+            center_pose.pose.position.z = new_detections_msg.detections[0].bbox3d.center.position.z
+            self._pose_pub.publish(center_pose)
+
 
     def process_detections(
         self,
@@ -343,3 +359,6 @@ def main():
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

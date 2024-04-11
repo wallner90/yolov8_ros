@@ -28,7 +28,7 @@ def generate_launch_description():
     model = LaunchConfiguration("model")
     model_cmd = DeclareLaunchArgument(
         "model",
-        default_value="yolov8m.pt",
+        default_value="yolov8m-pose.pt",
         description="Model name or path")
 
     tracker = LaunchConfiguration("tracker")
@@ -200,8 +200,8 @@ def generate_launch_description():
     ld.add_action(maximum_detection_threshold_cmd)
     ld.add_action(namespace_cmd)
 
-    # ld.add_action(detector_node_cmd)
-    # ld.add_action(tracking_node_cmd)
+    ld.add_action(detector_node_cmd)
+    ld.add_action(tracking_node_cmd)
     ld.add_action(detect_3d_node_cmd)
     ld.add_action(debug_node_cmd)
 
