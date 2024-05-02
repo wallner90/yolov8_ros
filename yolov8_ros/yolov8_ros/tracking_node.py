@@ -38,6 +38,18 @@ from yolov8_msgs.msg import Detection
 from yolov8_msgs.msg import DetectionArray
 from yolov8_msgs.srv import SetTrackedObject
 
+
+from boxmot import TRACKERS
+from boxmot.tracker_zoo import create_tracker
+from boxmot.utils import ROOT, WEIGHTS, TRACKER_CONFIGS
+from boxmot.utils.checks import TestRequirements
+
+import torch
+
+from pathlib import Path
+import yaml
+import cv2
+
 class TrackingNode(Node):
 
     def __init__(self) -> None:
@@ -62,6 +74,31 @@ class TrackingNode(Node):
         self.cv_bridge = CvBridge()
         self.tracker = self.create_tracker(tracker)
 
+        self.boxmot_tracker_method = 'strongsort'
+        assert self.boxmot_tracker_method in TRACKERS, \
+            f"'{self.boxmot_tracker_method}' is not supported. Supported ones are {TRACKERS}"
+        # self.boxmot_tracker_config = TRACKER_CONFIGS / (self.boxmot_tracker_method + '.yaml')
+        self.boxmot_tracker_config = Path('/workspace/src/yolov8_ros/yolov8_bringup/strongsort_boxmot.yaml')
+        with open(self.boxmot_tracker_config, 'r') as f:
+            config = yaml.safe_load(f)
+        # self.boxmot_reid_model = WEIGHTS / ('osnet_x0_25_msmt17.pt')
+        # self.boxmot_reid_model = Path('/workspace/osnet_x0_25_msmt17.pt')
+        self.boxmot_reid_model = Path('/workspace/osnet_ain_x1_0_msmt17_cosine.pt')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.boxmot_half = False
+        self.boxmot_per_class = True
+        self.boxmot_tracker = create_tracker(self.boxmot_tracker_method, 
+                                             self.boxmot_tracker_config, 
+                                             self.boxmot_reid_model, 
+                                             self.device, 
+                                             self.boxmot_half,
+                                             self.boxmot_per_class)
+        # self.boxmot_tracker.max_time_lost = 3000
+        # self.boxmot_tracker.buffer_size = 3000
+        # self.boxmot_tracker.track_buffer = 3000
+        # self.boxmot_tracker.track_thres = 0.5
+        if hasattr(self.boxmot_tracker, 'model'):
+            self.boxmot_tracker.model.warmup()
 
         # pubs
         self._pub = self.create_publisher(DetectionArray, "tracking", 10)
@@ -135,23 +172,31 @@ class TrackingNode(Node):
         # tracking
         if len(detection_list) > 0:
 
-            det = Boxes(
-                np.array(detection_list),
-                (img_msg.height, img_msg.width)
-            )
+            # det = Boxes(
+            #     np.array(detection_list),
+            #     (img_msg.height, img_msg.width)
+            # )
 
-            tracks = self.tracker.update(det, cv_image)
-            
+            # tracks = self.tracker.update(det, cv_image)
+            boxmot_tracks = self.boxmot_tracker.update(np.array(detection_list), cv_image)
+            # self.boxmot_tracker.plot_results(cv_image, show_trajectories=True)
+            # cv2.imshow('tracking', cv_image)
+            # cv2.waitKey(1)
 
-            if len(tracks) > 0:
+            if len(boxmot_tracks) > 0:
 
-                for t in tracks:
+                for t in boxmot_tracks:
 
                     tracked_box = Boxes(
                         t[:-1], (img_msg.height, img_msg.width))
 
-                    tracked_detection: Detection = detections_msg.detections[int(
-                        t[-1])]
+                    try:
+                        tracked_detection: Detection = detections_msg.detections[int(
+                            t[-1])]
+                    except:
+                        # if the tracked object is not in the detections, skip
+                        continue
+
                     
                     # If selected_object_id is not None and does not match the current track's id, skip this track
                     if self.selected_object_id is not None and self.selected_object_id != -1 and tracked_box.id != self.selected_object_id:
